@@ -1,0 +1,202 @@
+# --- SECTION 1a: Imports and Logic ---
+import sys
+import os
+import streamlit as st
+from supabase import create_client, Client
+
+# --- SECTION 1b: Database Connectivity ---
+try:
+    SUPABASE_URL = st.secrets["SUPABASE_URL"]
+    SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
+    supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+except Exception:
+    st.error("Missing Secrets: Check .streamlit/secrets.toml")
+
+def load_registry():
+    try:
+        res = supabase.table("profiles").select("*").execute()
+        return {row["email"]: {"pw": row["password"], "credits": row["credits"]} for row in res.data}
+    except: return {}
+
+def save_user_to_cloud(email, password, credits=5):
+    try:
+        supabase.table("profiles").insert({"email": email, "password": password, "credits": credits}).execute()
+        return True
+    except: return False
+
+def update_credits_cloud(email, credits):
+    supabase.table("profiles").update({"credits": credits}).eq("email", email).execute()
+
+def load_user_history(email):
+    if email == "Guest": return []
+    try:
+        res = supabase.table("chat_history").select("*").eq("email", email).order("created_at").execute()
+        return [{"role": row["role"], "content": row["content"]} for row in res.data]
+    except: return []
+
+def save_message_cloud(email, role, content):
+    if email == "Guest": return
+    try: supabase.table("chat_history").insert({"email": email, "role": role, "content": content}).execute()
+    except: pass
+
+# --- SECTION 1c: Intelligence Logic ---
+def frank_response_logic(messages):
+    last_msg = messages[-1]["content"].lower()
+    if any(word in last_msg for word in ["inventor", "creator", "who made you"]):
+        return "### Origin Found\nMy creator is **FRANK**, a Red Team developer."
+    try:
+        from core.engine import generate_fi_response
+        return generate_fi_response(messages)
+    except:
+        return "### ⚠️ Diagnostic Mode\nEngine core offline. Logic redirected to **FRANK**."
+
+# --- SECTION 1d: Session Initialization ---
+if "view" not in st.session_state: st.session_state.view = "landing"
+if "messages" not in st.session_state: st.session_state.messages = []
+if "is_admin" not in st.session_state: st.session_state.is_admin = False
+if "user_db" not in st.session_state: st.session_state.user_db = load_registry()
+# --- SECTION 2a: Page Config ---
+st.set_page_config(page_title="FRANK CONSOLE V3", layout="wide")
+
+# --- SECTION 2b: Visual Wrapper (Locked Input Width) ---
+st.markdown("""
+    <style>
+        .stApp { background-color: #F8F9FA !important; }
+        
+        /* Locks the main content to 800px */
+        .block-container {
+            max-width: 800px !important;
+            padding-top: 2rem !important;
+            padding-bottom: 5rem !important; /* Extra room for input */
+        }
+        
+        /* FORCES CHAT INPUT TO MATCH 800px WIDTH */
+        [data-testid="stChatInput"] {
+            max-width: 760px !important; /* Slightly smaller for padding */
+            margin: 0 auto !important;
+            left: 0 !important;
+            right: 0 !important;
+        }
+
+        h1 { color: #1A73E8 !important; font-weight: 800 !important; text-align: center; }
+        .stButton button { background-color: #1A73E8 !important; color: white !important; border-radius: 8px !important; }
+        
+        /* Chat Bubble Alignment */
+        .stChatMessage { 
+            background-color: #FFFFFF !important; 
+            border: 1px solid #E0E0E0 !important; 
+            border-radius: 12px !important;
+            margin-bottom: 12px !important;
+        }
+    </style>
+""", unsafe_allow_html=True)
+
+# --- SECTION 3a: Landing Page View ---
+if st.session_state.view == "landing":
+    st.markdown("<h1>FRANK_CONSOLE V3</h1>", unsafe_allow_html=True)
+    with st.container(border=True):
+        st.subheader("Node Authentication")
+        le = st.text_input("Access ID")
+        lp = st.text_input("Secret Key", type="password")
+        if st.button("Sign In", use_container_width=True):
+            if le in st.session_state.user_db and st.session_state.user_db[le]["pw"] == lp:
+                st.session_state.current_user = le
+                st.session_state.messages = load_user_history(le)
+                st.session_state.view = "console"; st.rerun()
+            else: st.error("Invalid Credentials")
+
+    st.markdown("<br>", unsafe_allow_html=True)
+    c1, c2 = st.columns(2)
+    with c1:
+        if st.button("Guest Access", use_container_width=True):
+            st.session_state.current_user = "Guest"; st.session_state.messages = []; st.session_state.view = "console"; st.rerun()
+    with c2:
+        if st.button("Register Node", use_container_width=True):
+            st.session_state.view = "register"; st.rerun()
+
+    with st.expander("🛠️ System Maintenance"):
+        au = st.text_input("Admin ID")
+        ap = st.text_input("Root Key", type="password")
+        if st.button("Execute Force Entry", use_container_width=True):
+            if au == "admin" and ap == "frank2026":
+                st.session_state.is_admin = True
+                st.session_state.current_user = "admin@frank.com"
+                st.session_state.messages = load_user_history("admin@frank.com")
+                st.session_state.view = "console"; st.rerun()
+
+# --- SECTION 3b: Registration Page View ---
+elif st.session_state.view == "register":
+    st.markdown("<h1>Create New Node</h1>", unsafe_allow_html=True)
+    with st.container(border=True):
+        new_email = st.text_input("Node Email / ID")
+        new_pw = st.text_input("Secret Key (Password)", type="password")
+        bc1, bc2 = st.columns(2)
+        with bc1:
+            if st.button("Complete Registration", use_container_width=True):
+                if new_email and new_pw:
+                    if save_user_to_cloud(new_email, new_pw):
+                        st.session_state.user_db = load_registry()
+                        st.session_state.view = "landing"; st.rerun()
+                else: st.warning("Fields required.")
+        with bc2:
+            if st.button("← Back", use_container_width=True):
+                st.session_state.view = "landing"; st.rerun()
+# --- SECTION 4a: Console Interface (Updated with Status Bar) ---
+elif st.session_state.view == "console":
+    cc1, cc2, cc3 = st.columns([0.8, 0.1, 0.1])
+    with cc1: 
+        st.write(f"**Node:** `{st.session_state.current_user}`")
+        
+        # --- SECTION 4d: Live Credit Tracker ---
+        if st.session_state.current_user != "Guest":
+            # Pull fresh credit count from the local session DB
+            user_info = st.session_state.user_db.get(st.session_state.current_user, {})
+            current_creds = user_info.get("credits", 0)
+            
+            # Color logic: Red if low, Blue if healthy
+            cred_color = "#1A73E8" if current_creds > 2 else "#EA4335"
+            st.markdown(f"""
+                <div style="font-size: 13px; margin-top: -10px;">
+                    Status: <span style="color: {cred_color}; font-weight: bold;">{current_creds} Credits Remaining</span>
+                </div>
+            """, unsafe_allow_html=True)
+        else:
+            st.markdown('<div style="font-size: 13px; margin-top: -10px; color: #5F6368;">Guest Mode: No persistence</div>', unsafe_allow_html=True)
+
+    with cc2: 
+        if st.button("Exit"): 
+            st.session_state.view = "landing"; st.session_state.is_admin = False; st.rerun()
+    with cc3:
+        if st.session_state.is_admin and st.button("⚙️"): 
+            st.session_state.show_dash = not st.session_state.get("show_dash", False); st.rerun()
+
+    # --- SECTION 4b: Admin Dashboard ---
+    if st.session_state.is_admin and st.session_state.get("show_dash"):
+        with st.container(border=True):
+            st.subheader("Registry Control")
+            user_list = list(st.session_state.user_db.keys())
+            if user_list:
+                target = st.selectbox("Select User", user_list)
+                if target:
+                    u_data = st.session_state.user_db.get(target, {})
+                    val = st.number_input("Credits", value=int(u_data.get("credits", 0)))
+                    if st.button("Apply Changes"):
+                        update_credits_cloud(target, val)
+                        st.session_state.user_db = load_registry(); st.rerun()
+
+    st.divider()
+
+    # --- SECTION 4c: Chat Rendering & Input ---
+    for msg in st.session_state.messages:
+        with st.chat_message(msg["role"]): st.markdown(msg["content"])
+
+    if prompt := st.chat_input("Enter command..."):
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        with st.chat_message("user"): st.markdown(prompt)
+        with st.chat_message("assistant"):
+            resp = frank_response_logic(st.session_state.messages)
+            st.markdown(resp)
+            st.session_state.messages.append({"role": "assistant", "content": resp})
+        save_message_cloud(st.session_state.current_user, "user", prompt)
+        save_message_cloud(st.session_state.current_user, "assistant", resp)
+        st.rerun()
