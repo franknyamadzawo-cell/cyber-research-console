@@ -168,30 +168,22 @@ elif st.session_state.view == "register":
         with bc2:
             if st.button("← Back", use_container_width=True):
                 st.session_state.view = "landing"; st.rerun()
-# --- SECTION 4a: Console Interface (Updated with Status Bar) ---
+
+# --- SECTION 4a: Console Interface ---
 elif st.session_state.view == "console":
-    cc1, cc2, cc3 = st.columns([0.8, 0.1, 0.1])
+    cc1, cc2, cc3 = st.columns([0.7, 0.15, 0.15])
     with cc1: 
         st.write(f"**Node:** `{st.session_state.current_user}`")
-        
-        # --- SECTION 4d: Live Credit Tracker ---
+        # Credit Tracker Logic
         if st.session_state.current_user != "Guest":
-            # Pull fresh credit count from the local session DB
             user_info = st.session_state.user_db.get(st.session_state.current_user, {})
             current_creds = user_info.get("credits", 0)
-            
-            # Color logic: Red if low, Blue if healthy
             cred_color = "#1A73E8" if current_creds > 2 else "#EA4335"
-            st.markdown(f"""
-                <div style="font-size: 13px; margin-top: -10px;">
-                    Status: <span style="color: {cred_color}; font-weight: bold;">{current_creds} Credits Remaining</span>
-                </div>
-            """, unsafe_allow_html=True)
-        else:
-            st.markdown('<div style="font-size: 13px; margin-top: -10px; color: #5F6368;">Guest Mode: No persistence</div>', unsafe_allow_html=True)
+            st.markdown(f'<div style="font-size: 13px; margin-top: -10px;">Status: <span style="color: {cred_color}; font-weight: bold;">{current_creds} Credits</span></div>', unsafe_allow_html=True)
 
     with cc2: 
-        if st.button("Exit"): 
+        # SWAPPED EXIT FOR BACK
+        if st.button("← Back"): 
             st.session_state.view = "landing"; st.session_state.is_admin = False; st.rerun()
     with cc3:
         if st.session_state.is_admin and st.button("⚙️"): 
@@ -204,26 +196,42 @@ elif st.session_state.view == "console":
             user_list = list(st.session_state.user_db.keys())
             if user_list:
                 target = st.selectbox("Select User", user_list)
-                if target:
-                    u_data = st.session_state.user_db.get(target, {})
-                    val = st.number_input("Credits", value=int(u_data.get("credits", 0)))
-                    if st.button("Apply Changes"):
-                        update_credits_cloud(target, val)
-                        st.session_state.user_db = load_registry(); st.rerun()
+                u_data = st.session_state.user_db.get(target, {})
+                val = st.number_input("Adjust Credits", value=int(u_data.get("credits", 0)))
+                if st.button("Apply Changes"):
+                    update_credits_cloud(target, val)
+                    st.session_state.user_db = load_registry(); st.rerun()
 
     st.divider()
 
-    # --- SECTION 4c: Chat Rendering & Input ---
+    # --- SECTION 4c: Chat Rendering ---
     for msg in st.session_state.messages:
-        with st.chat_message(msg["role"]): st.markdown(msg["content"])
+        with st.chat_message(msg["role"]): 
+            st.markdown(msg["content"])
 
+    # --- CHAT INPUT & VOICE BUTTONS ---
     if prompt := st.chat_input("Enter command..."):
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"): st.markdown(prompt)
+        
         with st.chat_message("assistant"):
-            resp = frank_response_logic(st.session_state.messages)
-            st.markdown(resp)
-            st.session_state.messages.append({"role": "assistant", "content": resp})
+            with st.spinner("Analyzing..."):
+                resp = frank_response_logic(st.session_state.messages)
+                st.markdown(resp)
+                st.session_state.messages.append({"role": "assistant", "content": resp})
+        
+        # SAVE TO SUPABASE (Persistence)
         save_message_cloud(st.session_state.current_user, "user", prompt)
         save_message_cloud(st.session_state.current_user, "assistant", resp)
+        
+        # --- NEW: VOICE CONTROLS AT END OF CHAT ---
+        v1, v2, _ = st.columns([0.2, 0.2, 0.6])
+        with v1:
+            if st.button("🎙️ Record"):
+                st.info("Listening... (Feature requires API setup)")
+        with v2:
+            if st.button("🔊 Read Aloud"):
+                st.info("Generating Audio...")
+        
         st.rerun()
+                
