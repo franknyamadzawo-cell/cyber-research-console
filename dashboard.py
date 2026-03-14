@@ -3,6 +3,9 @@ import sys
 import os
 import streamlit as st
 from supabase import create_client, Client
+# --- ADD THIS HELPER FUNCTION ---
+def is_valid_email(email):
+    return re.match(r"[^@]+@[^@]+\.[^@]+", email)
 
 # --- SECTION 1b: Database Connectivity ---
 try:
@@ -94,35 +97,59 @@ st.markdown("""
 # --- SECTION 3a: Landing Page View ---
 if st.session_state.view == "landing":
     st.markdown("<h1>FRANK_CONSOLE V3</h1>", unsafe_allow_html=True)
+    
     with st.container(border=True):
         st.subheader("Node Authentication")
-        le = st.text_input("Access ID")
+        le = st.text_input("Access ID", placeholder="email@example.com")
         lp = st.text_input("Secret Key", type="password")
+        
         if st.button("Sign In", use_container_width=True):
-            if le in st.session_state.user_db and st.session_state.user_db[le]["pw"] == lp:
+            # 1. Check for empty fields
+            if not le or not lp:
+                st.warning("⚠️ Access ID and Secret Key are required.")
+            # 2. Validate email format
+            elif not is_valid_email(le):
+                st.error("❌ Access ID must be a valid email address.")
+            # 3. Check Database credentials
+            elif le in st.session_state.user_db and st.session_state.user_db[le]["pw"] == lp:
                 st.session_state.current_user = le
                 st.session_state.messages = load_user_history(le)
-                st.session_state.view = "console"; st.rerun()
-            else: st.error("Invalid Credentials")
+                st.session_state.view = "console"
+                st.rerun()
+            else:
+                # Provide feedback instead of staying quiet
+                st.error("🚫 Credentials do not match. Please try again.")
 
     st.markdown("<br>", unsafe_allow_html=True)
     c1, c2 = st.columns(2)
     with c1:
         if st.button("Guest Access", use_container_width=True):
-            st.session_state.current_user = "Guest"; st.session_state.messages = []; st.session_state.view = "console"; st.rerun()
+            st.session_state.current_user = "Guest"
+            st.session_state.messages = []
+            st.session_state.view = "console"
+            st.rerun()
     with c2:
         if st.button("Register Node", use_container_width=True):
-            st.session_state.view = "register"; st.rerun()
+            st.session_state.view = "register"
+            st.rerun()
 
     with st.expander("🛠️ System Maintenance"):
         au = st.text_input("Admin ID")
         ap = st.text_input("Root Key", type="password")
+        
         if st.button("Execute Force Entry", use_container_width=True):
-            if au == "admin" and ap == "frank2026":
+            # 1. Check for empty admin fields
+            if not au or not ap:
+                st.warning("⚠️ Admin credentials required for Root Access.")
+            # 2. Check Admin Credentials (using secrets for security)
+            elif au == st.secrets["ADMIN_PIN"] and ap == st.secrets["ADMIN_PASSWORD"]:
                 st.session_state.is_admin = True
                 st.session_state.current_user = "admin@frank.com"
                 st.session_state.messages = load_user_history("admin@frank.com")
-                st.session_state.view = "console"; st.rerun()
+                st.session_state.view = "console"
+                st.rerun()
+            else:
+                st.error("🚫 Root Access Denied: Incorrect Admin ID or Root Key.")
 
 # --- SECTION 3b: Registration Page View ---
 elif st.session_state.view == "register":
