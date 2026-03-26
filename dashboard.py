@@ -42,27 +42,37 @@ def save_message_cloud(email, role, content):
     try: supabase.table("chat_history").insert({"email": email, "role": role, "content": content}).execute()
     except: pass
 
-# --- SECTION 1c: UNIVERSAL CLOUD ENGINE ---
+# --- SECTION 1c: FINAL HIGH-SPEED LOGIC ---
 import requests
 
 def frank_response_logic(messages):
     last_msg = messages[-1]["content"].lower()
     
-    # Creator Identity Check
+    # Custom Creator Check
     if any(word in last_msg for word in ["inventor", "creator", "who made you"]):
         return "### Origin Found\nCreated by **FRANK** for Private Red Team Research."
 
-    # CLOUD ENGINE ATTEMPT (Using Groq/OpenAI/OpenRouter)
     try:
-        # This uses the API key you put in Streamlit Secrets
         api_key = st.secrets["OFFENSIVE_ENGINE_API_KEY"]
+        url = "https://api.groq.com/openai/v1/chat/completions"
         
-        # Example using a standard REST API call to a cloud model
-        # This ensures the engine is 'ONLINE' on any device.
-        return "### Red Team Engine: Online (Cloud Node)\nAwaiting offensive commands..."
+        headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+        
+        # We pass the whole 'messages' list so it remembers the conversation history
+        data = {
+            "model": "llama-3.3-70b-versatile", 
+            "messages": messages,
+            "temperature": 0.5
+        }
+        
+        response = requests.post(url, headers=headers, json=data)
+        result = response.json()
+        
+        # THIS LINE EXTRACTS THE ACTUAL TEXT RESPONSE
+        return result['choices'][0]['message']['content']
+        
     except Exception as e:
-        # Fallback if the Cloud API fails
-        return f"### ⚠️ Diagnostic Mode\nEngine core offline. Logic redirected to **FRANK**."
+        return f"### ⚠️ Diagnostic Mode\nEngine core offline. Error: {str(e)}"
 
 # --- SECTION 1d: Session Initialization ---
 if "view" not in st.session_state: st.session_state.view = "landing"
