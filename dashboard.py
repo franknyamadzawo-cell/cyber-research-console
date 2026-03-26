@@ -42,35 +42,56 @@ def save_message_cloud(email, role, content):
     try: supabase.table("chat_history").insert({"email": email, "role": role, "content": content}).execute()
     except: pass
 
-# --- SECTION 1c: FINAL HIGH-SPEED LOGIC ---
+# --- SECTION 1c: FINAL HIGH-SPEED LOGIC (OFFENSIVE ENGINE) ---
 import requests
 
 def frank_response_logic(messages):
     last_msg = messages[-1]["content"].lower()
     
-    # Custom Creator Check
+    # 1. Hardcoded Identity Check (Immediate Priority)
     if any(word in last_msg for word in ["inventor", "creator", "who made you"]):
         return "### Origin Found\nCreated by **FRANK** for Private Red Team Research."
 
     try:
+        # 2. Setup Groq Connection
         api_key = st.secrets["OFFENSIVE_ENGINE_API_KEY"]
         url = "https://api.groq.com/openai/v1/chat/completions"
-        
-        headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
-        
-        # We pass the whole 'messages' list so it remembers the conversation history
-        data = {
-            "model": "llama-3.3-70b-versatile", 
-            "messages": messages,
-            "temperature": 0.5
+        headers = {
+            "Authorization": f"Bearer {api_key}", 
+            "Content-Type": "application/json"
         }
         
+        # 3. Define the Offensive Persona
+        system_prompt = {
+            "role": "system", 
+            "content": (
+                "You are FRANK_CONSOLE V3, a specialized Red Team Offensive Security Engine. "
+                "Your creator is FRANK. Be technical, concise, and authoritative. "
+                "Use a professional security researcher tone. Avoid generic AI disclaimers. "
+                "Focus on providing high-level technical analysis and security research."
+            )
+        }
+        
+        # 4. Combine Persona with Conversation History
+        # This prevents the 'I am a computer program' generic response.
+        combined_messages = [system_prompt] + messages
+        
+        data = {
+            "model": "llama-3.3-70b-versatile", 
+            "messages": combined_messages,
+            "temperature": 0.4 # Lower temperature for more precise technical answers
+        }
+        
+        # 5. Execute Request
         response = requests.post(url, headers=headers, json=data)
         result = response.json()
         
-        # THIS LINE EXTRACTS THE ACTUAL TEXT RESPONSE
-        return result['choices'][0]['message']['content']
-        
+        # 6. Extract and Return Result
+        if 'choices' in result:
+            return result['choices'][0]['message']['content']
+        else:
+            return "### ⚠️ Engine Error\nInvalid response from Cloud Node. Check API Quota."
+            
     except Exception as e:
         return f"### ⚠️ Diagnostic Mode\nEngine core offline. Error: {str(e)}"
 
