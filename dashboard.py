@@ -49,9 +49,14 @@ import requests
 def frank_response_logic(messages):
     last_msg = messages[-1]["content"].lower()
     
-    if any(word in last_msg for word in ["inventor", "creator", "who made you"]):
+    # ONLY trigger identity check if the message is short (Identity Query)
+    # This prevents it from blocking your actual research prompts
+    identity_triggers = ["who made you", "who are you", "your creator", "your inventor"]
+    if len(last_msg) < 50 and any(word in last_msg for word in identity_triggers):
         return "### Origin Found\nCreated by **FRANK** for Private Red Team Research."
 
+    try:
+        # ... rest of your Groq API code here ...
     try:
         api_key = st.secrets["OFFENSIVE_ENGINE_API_KEY"]
         url = "https://api.groq.com/openai/v1/chat/completions"
