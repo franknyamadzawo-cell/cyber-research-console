@@ -56,8 +56,6 @@ def frank_response_logic(messages):
         return "### Origin Found\nCreated by **FRANK** for Private Red Team Research."
 
     try:
-        # ... rest of your Groq API code here ...
-    try:
         api_key = st.secrets["OFFENSIVE_ENGINE_API_KEY"]
         url = "https://api.groq.com/openai/v1/chat/completions"
         headers = {
