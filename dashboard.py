@@ -86,11 +86,12 @@ def frank_response_logic(messages):
         }
         
         combined_messages = [system_prompt, user_context] + messages
-        
+
         data = {
             "model": "llama-3.3-70b-versatile", 
             "messages": combined_messages,
-            "temperature": 0.2 if is_deep_research else 0.4
+            "temperature": 0.1, # Keep it very low for technical tasks
+            "top_p": 1.0
         }
         
         response = requests.post(url, headers=headers, json=data)
