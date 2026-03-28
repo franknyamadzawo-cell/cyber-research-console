@@ -108,7 +108,7 @@ def frank_response_logic(messages):
             # Check for success
             if 'choices' in result:
                 # Optional: Add a subtle indicator if using the backup node
-                node_label = " [70B-PRIMARY]" if model_choice == "llama-3.3-70b-versatile" else " [NODE: 8B-BACKUP]"
+                node_label = " [NODE 70B-PRIMARY]" if model_choice == "llama-3.3-70b-versatile" else " [NODE: 8B-BACKUP]"
                 return result['choices'][0]['message']['content'] + f"\n\n---\n*{node_label}*"
             
             # If rate limited (429), the loop continues to the next model (8B)
