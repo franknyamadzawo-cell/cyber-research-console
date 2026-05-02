@@ -130,32 +130,45 @@ st.set_page_config(page_title="FRANK CONSOLE V3", layout="wide")
 # --- SECTION 2b: Visual Wrapper (Locked Input Width) ---
 st.markdown("""
     <style>
+        /* General Page Background */
         .stApp { background-color: #F8F9FA !important; }
         
         /* Locks the main content to 800px */
         .block-container {
             max-width: 800px !important;
             padding-top: 2rem !important;
-            padding-bottom: 5rem !important; /* Extra room for input */
+            padding-bottom: 10rem !important; /* Added more space for bottom input */
         }
         
         /* FORCES CHAT INPUT TO MATCH 800px WIDTH */
-        [data-testid="stChatInput"] {
-            max-width: 760px !important; /* Slightly smaller for padding */
+        /* We target the container wrapper to ensure it stays centered */
+        [data-testid="stChatInputContainer"] {
+            max-width: 800px !important;
             margin: 0 auto !important;
             left: 0 !important;
             right: 0 !important;
         }
 
+        /* Styling for the actual input box inside the container */
+        [data-testid="stChatInput"] {
+            border-radius: 12px !important;
+        }
+
         h1 { color: #1A73E8 !important; font-weight: 800 !important; text-align: center; }
-        .stButton button { background-color: #1A73E8 !important; color: white !important; border-radius: 8px !important; }
         
-        /* Chat Bubble Alignment */
+        .stButton button { 
+            background-color: #1A73E8 !important; 
+            color: white !important; 
+            border-radius: 8px !important; 
+        }
+        
+        /* Chat Bubble Styling */
         .stChatMessage { 
             background-color: #FFFFFF !important; 
             border: 1px solid #E0E0E0 !important; 
             border-radius: 12px !important;
             margin-bottom: 12px !important;
+            padding: 1rem !important;
         }
     </style>
 """, unsafe_allow_html=True)
